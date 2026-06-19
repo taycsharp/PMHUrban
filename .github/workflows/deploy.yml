@@ -1,0 +1,42 @@
+name: Deploy Phu My Hung Homes CRM
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LINUX_SSH_KEY }}
+
+      - name: Deploy over SSH or Tailscale private IP
+        env:
+          LINUX_HOST: ${{ secrets.LINUX_HOST }}
+          LINUX_USER: ${{ secrets.LINUX_USER }}
+          PROJECT_PATH: ${{ secrets.PROJECT_PATH }}
+          RUN_SEED: ${{ vars.RUN_SEED || 'false' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no "${LINUX_USER}@${LINUX_HOST}" << EOF
+            set -euo pipefail
+            cd "${PROJECT_PATH}"
+            git fetch origin dev
+            git reset --hard origin/dev
+            test -f .env || (echo ".env is missing on server" && exit 1)
+            docker compose up -d --build --remove-orphans
+            docker compose exec -T backend alembic upgrade head
+            if [ "${RUN_SEED}" = "true" ]; then
+              docker compose exec -T backend python -m app.seed
+            fi
+            curl -fsS http://localhost:8000/health
+            curl -fsS http://localhost:3000
+            docker compose ps
+          EOF
+

@@ -1,0 +1,11 @@
+alembic==1.13.2
+email-validator==2.2.0
+eval-type-backport==0.3.0
+fastapi==0.111.1
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+psycopg[binary]==3.2.1
+pydantic-settings==2.3.4
+python-jose==3.3.0
+SQLAlchemy==2.0.31
+uvicorn[standard]==0.30.3
