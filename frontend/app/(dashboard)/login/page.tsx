@@ -10,15 +10,25 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const email = String(data.get("email") ?? "").trim();
+    const password = String(data.get("password") ?? "");
+    if (!email || !password) {
+      setError("Enter a Phu My Hung Homes CRM email and password.");
+      return;
+    }
+    setLoading(true);
     try {
-      await login(String(data.get("email")), String(data.get("password")));
+      await login(email, password);
       router.push("/dashboard");
     } catch {
       setError("Unable to sign in to Phu My Hung Homes CRM");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -30,13 +40,15 @@ export default function LoginPage() {
             <Typography variant="h4">Phu My Hung Homes CRM</Typography>
             <Typography color="text.secondary">Broker workspace for verified Phu My Hung properties, owners, customers, viewings, and deals.</Typography>
             {error && <Alert severity="error">{error}</Alert>}
-            <TextField name="email" label="Email" defaultValue="admin@pmhhomes.local" />
-            <TextField name="password" label="Password" type="password" defaultValue="password123" />
-            <Button type="submit" variant="contained" size="large" startIcon={<LoginIcon />}>Sign in</Button>
+            <TextField name="email" label="Email" defaultValue="admin@pmhhomes.local" required />
+            <TextField name="password" label="Password" type="password" defaultValue="password123" required />
+            <Button type="submit" variant="contained" size="large" startIcon={<LoginIcon />} disabled={loading}>
+              {loading ? "Signing in..." : "Sign in"}
+            </Button>
+            <Alert severity="info">Demo viewer: viewer@pmhhomes.local / password123</Alert>
           </Stack>
         </Paper>
       </Container>
     </Box>
   );
 }
-

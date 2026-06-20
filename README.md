@@ -19,6 +19,12 @@ Production-style MVP for a focused Phu My Hung real-estate portal and internal b
 
 ## Local Setup
 
+Requirements:
+
+- Python 3.11+
+- Node.js 20 LTS or newer compatible runtime
+- Docker Desktop if using PostgreSQL through Compose
+
 Copy the environment file:
 
 ```bash
@@ -33,6 +39,12 @@ Run the full stack:
 docker compose up --build
 ```
 
+Open:
+
+- Public site: `http://localhost:3000`
+- CRM login: `http://localhost:3000/login`
+- Backend docs: `http://localhost:8000/docs`
+
 Run migrations and seed data manually:
 
 ```bash
@@ -41,14 +53,30 @@ alembic upgrade head
 python -m app.seed
 ```
 
-Run backend locally:
+Run backend locally with PostgreSQL:
 
 ```bash
 cd backend
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
+export DATABASE_URL=postgresql+psycopg://pmh:pmh@localhost:5432/pmh_homes
+alembic upgrade head
+python -m app.seed
 uvicorn app.main:app --reload
+```
+
+Run backend locally with a disposable SQLite database:
+
+```bash
+cd backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+rm -f dev.db
+DATABASE_URL=sqlite:///./dev.db alembic upgrade head
+DATABASE_URL=sqlite:///./dev.db python -m app.seed
+DATABASE_URL=sqlite:///./dev.db uvicorn app.main:app --reload
 ```
 
 Run frontend locally:
@@ -56,7 +84,14 @@ Run frontend locally:
 ```bash
 cd frontend
 npm install
-npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
+```
+
+Build frontend:
+
+```bash
+cd frontend
+npm run build
 ```
 
 ## Demo Accounts
@@ -66,6 +101,13 @@ npm run dev
 - `broker1@pmhhomes.local` / `password123`
 - `broker2@pmhhomes.local` / `password123`
 - `viewer@pmhhomes.local` / `password123`
+
+Role behavior:
+
+- Admin: full Phu My Hung CRM access.
+- Manager: team-oriented visibility and assignment workflow.
+- Broker: assigned Phu My Hung properties, customers, appointments, and deals.
+- Viewer: read-only CRM UI; backend write APIs return `403`.
 
 ## API
 
@@ -104,8 +146,18 @@ Frontend:
 ```bash
 cd frontend
 npm install
+npm run lint
 npm run build
 ```
+
+Security audit:
+
+```bash
+cd frontend
+npm audit
+```
+
+Current note: direct `axios` advisories were fixed by upgrading to `1.18.0`, the vulnerable `eslint-config-next` dependency was removed, and `postcss` is overridden to `8.5.15`. NPM still reports one advisory against Next 14 itself; npm's available fix is a major upgrade to Next 16, so this MVP remains on Next 14 until a planned framework upgrade is accepted. The unused Next image remote pattern config was removed to avoid exposing the Image Optimizer path in this app.
 
 ## Future Roadmap
 
@@ -118,4 +170,3 @@ npm run build
 - Owner portal and customer saved properties.
 - Contract PDF generation.
 - Excel import/export.
-

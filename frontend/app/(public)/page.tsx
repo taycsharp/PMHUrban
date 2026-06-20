@@ -4,9 +4,10 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { PageShell } from "@/components/PageShell";
 import { PropertyCard } from "@/components/PropertyCard";
 import { SearchPanel } from "@/components/SearchPanel";
-import { projects, properties } from "@/lib/sample-data";
+import { getProjects, getProperties } from "@/lib/backend-data";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [projects, properties] = await Promise.all([getProjects(), getProperties()]);
   const rentals = properties.filter((property) => property.listingType === "rent" && property.isFeatured).slice(0, 3);
   const sales = properties.filter((property) => property.listingType === "sale" && property.isFeatured).slice(0, 3);
 
@@ -78,4 +79,3 @@ export default function HomePage() {
     </PageShell>
   );
 }
-

@@ -64,11 +64,19 @@ def viewer_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+@pytest.fixture()
+def broker_headers(client: TestClient) -> dict[str, str]:
+    response = client.post("/api/v1/auth/login", json={"email": "broker1@pmhhomes.local", "password": "password123"})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
 def seed_minimal(db: Session) -> None:
     admin = User(email="admin@pmhhomes.local", full_name="Admin", role="admin", hashed_password=get_password_hash("password123"))
     broker = User(email="broker1@pmhhomes.local", full_name="Broker", role="broker", hashed_password=get_password_hash("password123"))
+    other_broker = User(email="broker2@pmhhomes.local", full_name="Other Broker", role="broker", hashed_password=get_password_hash("password123"))
     viewer = User(email="viewer@pmhhomes.local", full_name="Viewer", role="viewer", hashed_password=get_password_hash("password123"))
-    db.add_all([admin, broker, viewer])
+    db.add_all([admin, broker, other_broker, viewer])
     db.flush()
     project = Project(name="Midtown", slug="midtown", description="Midtown Phu My Hung", property_types=["apartment"], amenities=["pool"], nearby_places=["Sakura Park"])
     db.add(project)
@@ -102,7 +110,28 @@ def seed_minimal(db: Session) -> None:
         is_featured=True,
     )
     customer = Customer(full_name="Customer One", phone="+84800000000", status="qualified", assigned_user_id=broker.id)
-    db.add_all([property_, customer])
+    other_property = Property(
+        code="PMH-OTHER",
+        slug="phu-my-hung-other-broker",
+        title="Verified other broker Phu My Hung apartment",
+        listing_type="rent",
+        property_type="apartment",
+        status="available",
+        project_id=project.id,
+        owner_id=owner.id,
+        assigned_user_id=other_broker.id,
+        bedrooms=1,
+        bathrooms=1,
+        area_sqm=Decimal("60"),
+        rental_price=Decimal("21000000"),
+        currency="VND",
+        furniture_status="basic",
+        view_type="city",
+        available_from=datetime.now(timezone.utc) + timedelta(days=5),
+        description_en="Assigned to another Phu My Hung broker.",
+        is_verified=True,
+    )
+    db.add_all([property_, other_property, customer])
     db.flush()
     requirement = CustomerRequirement(
         customer_id=customer.id,

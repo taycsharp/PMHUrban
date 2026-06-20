@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Box, Button, Chip, Container, Grid, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Container, Grid, Paper, Stack, Typography } from "@mui/material";
 import { PageShell } from "@/components/PageShell";
 import { PropertyCard } from "@/components/PropertyCard";
-import { properties, propertyPrice } from "@/lib/sample-data";
+import { PropertyInquiryForm } from "@/components/PropertyInquiryForm";
+import { getProperties, getProperty } from "@/lib/backend-data";
+import { properties as fallbackProperties, propertyPrice } from "@/lib/sample-data";
 
-export function generateStaticParams() {
-  return properties.map((property) => ({ slug: property.slug }));
+export async function generateStaticParams() {
+  return fallbackProperties.map((property) => ({ slug: property.slug }));
 }
 
-export default function PropertyDetailPage({ params }: { params: { slug: string } }) {
-  const property = properties.find((item) => item.slug === params.slug);
+export default async function PropertyDetailPage({ params }: { params: { slug: string } }) {
+  const property = await getProperty(params.slug);
   if (!property) notFound();
-  const similar = properties.filter((item) => item.project === property.project && item.id !== property.id).slice(0, 3);
+  const similar = (await getProperties(property.listingType)).filter((item) => item.project === property.project && item.id !== property.id).slice(0, 3);
 
   return (
     <PageShell>
@@ -31,6 +33,16 @@ export default function PropertyDetailPage({ params }: { params: { slug: string 
               <Typography color="text.secondary">{property.project}, Phu My Hung - {property.areaSqm} m2 - {property.bedrooms} bedrooms - {property.bathrooms} bathrooms</Typography>
               <Typography>{property.description}</Typography>
               <Paper sx={{ p: 2 }}>
+                <Typography variant="h6">Property facts</Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                  <Chip label={property.furnitureStatus.replace("_", " ")} />
+                  <Chip label={`${property.availableFrom}`} />
+                  {property.balcony && <Chip label="Balcony" />}
+                  {property.parking && <Chip label="Parking" />}
+                  {property.petFriendly && <Chip label="Pet friendly" />}
+                </Stack>
+              </Paper>
+              <Paper sx={{ p: 2 }}>
                 <Typography variant="h6">Nearby Phu My Hung lifestyle points</Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                   {property.nearby.map((item) => <Chip key={item} label={item} />)}
@@ -39,15 +51,7 @@ export default function PropertyDetailPage({ params }: { params: { slug: string 
             </Stack>
           </Grid>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 2, position: { md: "sticky" }, top: 88 }}>
-              <Stack spacing={2}>
-                <Typography variant="h5">Contact Phu My Hung Homes</Typography>
-                <TextField label="Full name" size="small" />
-                <TextField label="Phone or Zalo" size="small" />
-                <TextField label="Message" multiline rows={4} defaultValue={`I want to view ${property.code} in Phu My Hung.`} />
-                <Button variant="contained">Request viewing</Button>
-              </Stack>
-            </Paper>
+            <PropertyInquiryForm property={property} />
           </Grid>
         </Grid>
         <Stack spacing={2} sx={{ mt: 5 }}>
@@ -59,4 +63,3 @@ export default function PropertyDetailPage({ params }: { params: { slug: string 
     </PageShell>
   );
 }
-

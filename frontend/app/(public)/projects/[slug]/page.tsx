@@ -1,17 +1,19 @@
 import { notFound } from "next/navigation";
 import { Box, Chip, Container, Grid, Paper, Stack, Typography } from "@mui/material";
+import { EmptyState } from "@/components/EmptyState";
 import { PageShell } from "@/components/PageShell";
 import { PropertyCard } from "@/components/PropertyCard";
-import { projects, properties } from "@/lib/sample-data";
+import { getProject, getProjects, getProperties } from "@/lib/backend-data";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const projects = await getProjects();
   return projects.map((project) => ({ slug: project.slug }));
 }
 
-export default function ProjectDetailPage({ params }: { params: { slug: string } }) {
-  const project = projects.find((item) => item.slug === params.slug);
+export default async function ProjectDetailPage({ params }: { params: { slug: string } }) {
+  const project = await getProject(params.slug);
   if (!project) notFound();
-  const listings = properties.filter((property) => property.projectSlug === project.slug).slice(0, 4);
+  const listings = (await getProperties()).filter((property) => property.projectSlug === project.slug).slice(0, 4);
 
   return (
     <PageShell>
@@ -39,10 +41,13 @@ export default function ProjectDetailPage({ params }: { params: { slug: string }
         </Grid>
         <Stack spacing={2} sx={{ mt: 4 }}>
           <Typography variant="h4">Available homes in {project.name}</Typography>
-          <Grid container spacing={2}>{listings.map((property) => <Grid item xs={12} md={3} key={property.id}><PropertyCard property={property} /></Grid>)}</Grid>
+          {listings.length ? (
+            <Grid container spacing={2}>{listings.map((property) => <Grid item xs={12} md={3} key={property.id}><PropertyCard property={property} /></Grid>)}</Grid>
+          ) : (
+            <EmptyState title={`No current ${project.name} listings`} message="Add or verify more Phu My Hung inventory in the CRM to publish it here." />
+          )}
         </Stack>
       </Container>
     </PageShell>
   );
 }
-

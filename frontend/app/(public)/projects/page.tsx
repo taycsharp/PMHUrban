@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Box, Button, Container, Grid, Paper, Stack, Typography } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { PageShell } from "@/components/PageShell";
-import { projects } from "@/lib/sample-data";
+import { getProjects } from "@/lib/backend-data";
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const projects = await getProjects();
   return (
     <PageShell>
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -29,4 +30,3 @@ export default function ProjectsPage() {
     </PageShell>
   );
 }
-

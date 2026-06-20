@@ -1,11 +1,12 @@
 import { Container, Grid, Stack, Typography } from "@mui/material";
+import { EmptyState } from "@/components/EmptyState";
 import { ListingFilters } from "@/components/ListingFilters";
 import { PageShell } from "@/components/PageShell";
 import { PropertyCard } from "@/components/PropertyCard";
-import { properties } from "@/lib/sample-data";
+import { getProperties } from "@/lib/backend-data";
 
-export default function RentPage() {
-  const rentals = properties.filter((property) => property.listingType === "rent");
+export default async function RentPage() {
+  const rentals = await getProperties("rent");
   return (
     <PageShell>
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -14,7 +15,11 @@ export default function RentPage() {
           <Grid container spacing={3}>
             <Grid item xs={12} md={3}><ListingFilters listingType="rent" /></Grid>
             <Grid item xs={12} md={9}>
-              <Grid container spacing={2}>{rentals.map((property) => <Grid item xs={12} sm={6} lg={4} key={property.id}><PropertyCard property={property} /></Grid>)}</Grid>
+              {rentals.length ? (
+                <Grid container spacing={2}>{rentals.map((property) => <Grid item xs={12} sm={6} lg={4} key={property.id}><PropertyCard property={property} /></Grid>)}</Grid>
+              ) : (
+                <EmptyState title="No verified Phu My Hung rentals found" message="Adjust the filters or add a new verified rental in the CRM." />
+              )}
             </Grid>
           </Grid>
         </Stack>
@@ -22,4 +27,3 @@ export default function RentPage() {
     </PageShell>
   );
 }
-

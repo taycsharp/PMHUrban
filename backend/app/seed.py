@@ -107,7 +107,7 @@ def seed() -> None:
         now = datetime.now(timezone.utc)
         for i in range(1, 41):
             listing_type = "rent" if i % 2 else "sale"
-            project = projects[i % len(projects)]
+            project = projects[(i - 1) % len(projects)]
             property_type = property_types[i % len(property_types)] if i % 9 == 0 else "apartment"
             bedrooms = (i % 4) + 1
             area = Decimal(55 + i * 3)
