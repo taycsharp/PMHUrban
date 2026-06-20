@@ -35,7 +35,7 @@ export default async function HomePage() {
             </Grid>
           </Grid>
           <Box sx={{ mt: 4 }}>
-            <SearchPanel />
+            <SearchPanel projects={projects} />
           </Box>
         </Container>
       </Box>

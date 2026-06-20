@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.v1.deps import get_current_user, require_roles, require_write, team_member_ids
@@ -365,7 +365,18 @@ def public_properties(
     listing_type: str | None = None,
     property_type: str | None = None,
     project_id: int | None = None,
+    q: str | None = None,
     bedrooms: int | None = None,
+    bathrooms: int | None = None,
+    min_area: float | None = None,
+    max_area: float | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    furniture_status: str | None = None,
+    view_type: str | None = None,
+    pet_friendly: bool | None = None,
+    balcony: bool | None = None,
+    parking: bool | None = None,
     verified_only: bool = True,
     db: Session = Depends(get_db),
 ):
@@ -378,6 +389,38 @@ def public_properties(
         stmt = stmt.where(Property.project_id == project_id)
     if bedrooms:
         stmt = stmt.where(Property.bedrooms >= bedrooms)
+    if bathrooms:
+        stmt = stmt.where(Property.bathrooms >= bathrooms)
+    if min_area:
+        stmt = stmt.where(Property.area_sqm >= min_area)
+    if max_area:
+        stmt = stmt.where(Property.area_sqm <= max_area)
+    if furniture_status:
+        stmt = stmt.where(Property.furniture_status == furniture_status)
+    if view_type:
+        stmt = stmt.where(Property.view_type == view_type)
+    if pet_friendly is not None:
+        stmt = stmt.where(Property.pet_friendly.is_(pet_friendly))
+    if balcony is not None:
+        stmt = stmt.where(Property.balcony.is_(balcony))
+    if parking is not None:
+        stmt = stmt.where(Property.parking.is_(parking))
+    if q:
+        pattern = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Property.code.ilike(pattern),
+                Property.title.ilike(pattern),
+                Property.address_detail.ilike(pattern),
+                Property.tower_block.ilike(pattern),
+            )
+        )
+    if min_price or max_price:
+        price_column = Property.sale_price if listing_type == "sale" else Property.rental_price
+        if min_price:
+            stmt = stmt.where(price_column >= min_price)
+        if max_price:
+            stmt = stmt.where(price_column <= max_price)
     if verified_only:
         stmt = stmt.where(Property.is_verified.is_(True))
     return list(db.scalars(stmt.order_by(Property.is_featured.desc(), Property.created_at.desc()).limit(60)))
