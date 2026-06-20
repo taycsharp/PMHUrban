@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 *.db
+uploads/
 htmlcov/
 node_modules/
 .next/

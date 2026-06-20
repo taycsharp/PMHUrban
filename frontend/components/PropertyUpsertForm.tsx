@@ -6,6 +6,7 @@ import { Alert, Button, Checkbox, FormControlLabel, Grid, MenuItem, Paper, Stack
 import SaveIcon from "@mui/icons-material/Save";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { uploadPropertyImages } from "@/lib/property-images";
 import { useAuth } from "@/contexts/auth-context";
 import { ApiProject, ApiProperty, ApiPropertyPayload } from "@/types/api";
 
@@ -36,6 +37,10 @@ function errorMessage(error: unknown) {
   return "Could not save the Phu My Hung property. Check required values and API permissions.";
 }
 
+function formFiles(form: FormData) {
+  return form.getAll("images").filter((value): value is File => value instanceof File && value.size > 0);
+}
+
 export function PropertyUpsertForm({ property, projects }: { property?: ApiProperty; projects: ApiProject[] }) {
   const { user } = useAuth();
   const router = useRouter();
@@ -54,6 +59,7 @@ export function PropertyUpsertForm({ property, projects }: { property?: ApiPrope
       return;
     }
     const form = new FormData(event.currentTarget);
+    const images = formFiles(form);
     const missing = requiredFields.filter((field) => !String(form.get(field) ?? "").trim());
     if (missing.length) {
       setError("Code, slug, title, and project are required.");
@@ -107,9 +113,12 @@ export function PropertyUpsertForm({ property, projects }: { property?: ApiPrope
     setSaving(true);
     try {
       const response = isEdit ? await api.put(`/properties/${property?.id}`, payload) : await api.post("/properties", payload);
+      if (images.length) {
+        await uploadPropertyImages(response.data.id, images, String(form.get("title") || response.data.code), !isEdit && response.data.images.length === 0);
+      }
       await queryClient.invalidateQueries({ queryKey: ["crm-properties"] });
       await queryClient.invalidateQueries({ queryKey: ["crm-property", String(response.data.id)] });
-      setSuccess(`${response.data.code} saved in the Phu My Hung CRM.`);
+      setSuccess(`${response.data.code} saved in the Phu My Hung CRM${images.length ? ` with ${images.length} local image${images.length === 1 ? "" : "s"}` : ""}.`);
       setError(null);
       if (!isEdit) router.push(`/dashboard/properties/${response.data.id}`);
     } catch (saveError) {
@@ -171,6 +180,12 @@ export function PropertyUpsertForm({ property, projects }: { property?: ApiPrope
           <Grid item xs={12}><TextField name="description_en" fullWidth label="English public description" multiline rows={4} defaultValue={property?.description_en ?? "Verified Phu My Hung listing with owner-confirmed viewing windows."} /></Grid>
           <Grid item xs={12}><TextField name="description_vi" fullWidth label="Vietnamese public description" multiline rows={3} defaultValue={property?.description_vi ?? ""} /></Grid>
           <Grid item xs={12}><TextField name="internal_notes" fullWidth label="Internal notes" multiline rows={3} defaultValue={property?.internal_notes ?? ""} /></Grid>
+          <Grid item xs={12}>
+            <Button component="label" variant="outlined" disabled={saving || !canWrite}>
+              Choose local images
+              <input hidden name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+            </Button>
+          </Grid>
           <Grid item xs={12}>
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
               <FormControlLabel control={<Checkbox name="balcony" defaultChecked={property?.balcony ?? true} />} label="Balcony" />

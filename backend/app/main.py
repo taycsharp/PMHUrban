@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes import api_router
 from app.core.config import get_settings
@@ -10,6 +13,10 @@ from app.core.config import get_settings
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name, version="0.1.0", openapi_url="/api/v1/openapi.json")
+
+if settings.upload_storage_driver == "local":
+    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+    app.mount(settings.upload_url_prefix, StaticFiles(directory=settings.upload_dir), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

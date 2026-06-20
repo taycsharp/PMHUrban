@@ -8,6 +8,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/EmptyState";
+import { PropertyImageUploader } from "@/components/PropertyImageUploader";
 import { PropertyUpsertForm } from "@/components/PropertyUpsertForm";
 import { useAuth } from "@/contexts/auth-context";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -115,6 +116,7 @@ export function PropertyDetailPanel({ propertyId }: { propertyId: string }) {
       </Grid>
 
       <PropertyUpsertForm property={property.data} projects={projects.data} />
+      <PropertyImageUploader property={property.data} canWrite={canWrite} />
     </Stack>
   );
 }

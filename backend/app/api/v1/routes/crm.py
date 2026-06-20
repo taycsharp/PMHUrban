@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import TypeVar
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.v1.deps import get_current_user, require_roles, require_write, team_member_ids
+from app.core.config import get_settings
 from app.core.permissions import Role, can_view_assigned
 from app.db.session import get_db
 from app.models import (
@@ -20,6 +23,7 @@ from app.models import (
     Owner,
     Project,
     Property,
+    PropertyImage,
     ViewingAppointment,
 )
 from app.schemas import (
@@ -76,6 +80,48 @@ def _get_visible_or_404(model: type[ModelT], item_id: int, db: Session, current_
 
 def _log(db: Session, user_id: int | None, entity_type: str, entity_id: int | None, action: str, note: str = "") -> None:
     db.add(Activity(actor_user_id=user_id, entity_type=entity_type, entity_id=entity_id, action=action, note=note))
+
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+
+
+def _local_upload_url(relative_path: str) -> str:
+    settings = get_settings()
+    return f"{settings.upload_public_base_url.rstrip('/')}{settings.upload_url_prefix.rstrip('/')}/{relative_path.lstrip('/')}"
+
+
+def _save_property_image_upload(property_id: int, file: UploadFile) -> str:
+    settings = get_settings()
+    if settings.upload_storage_driver != "local":
+        raise HTTPException(status_code=400, detail="Only local image uploads are configured")
+    extension = ALLOWED_IMAGE_TYPES.get(file.content_type or "")
+    if not extension:
+        raise HTTPException(status_code=400, detail="Upload a JPG, PNG, or WebP image")
+
+    upload_root = Path(settings.upload_dir)
+    property_dir = upload_root / "properties" / str(property_id)
+    property_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{extension}"
+    target = property_dir / filename
+    max_bytes = settings.upload_max_size_mb * 1024 * 1024
+
+    total = 0
+    with target.open("wb") as output:
+        while chunk := file.file.read(1024 * 1024):
+            total += len(chunk)
+            if total > max_bytes:
+                output.close()
+                target.unlink(missing_ok=True)
+                raise HTTPException(status_code=413, detail=f"Image exceeds {settings.upload_max_size_mb} MB")
+            output.write(chunk)
+    if total == 0:
+        target.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Image file is empty")
+    return _local_upload_url(f"properties/{property_id}/{filename}")
 
 
 projects_router = APIRouter(prefix="/projects", tags=["projects"])
@@ -216,6 +262,35 @@ def delete_property(property_id: int, db: Session = Depends(get_db), current_use
     _log(db, current_user.id, "property", item.id, "property status changed", f"Soft deleted {item.code}")
     db.commit()
     return {"ok": True}
+
+
+@properties_router.post("/{property_id}/images", response_model=PropertyRead, dependencies=[Depends(require_write)])
+def upload_property_image(
+    property_id: int,
+    file: UploadFile = File(...),
+    caption: str | None = Form(None),
+    sort_order: int | None = Form(None),
+    is_cover: bool = Form(False),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    item = _get_visible_or_404(Property, property_id, db, current_user)
+    image_url = _save_property_image_upload(property_id, file)
+    if is_cover or not item.images:
+        for image in item.images:
+            image.is_cover = False
+        is_cover = True
+    image = PropertyImage(
+        property_id=item.id,
+        image_url=image_url,
+        caption=caption,
+        sort_order=sort_order if sort_order is not None else len(item.images),
+        is_cover=is_cover,
+    )
+    db.add(image)
+    _log(db, current_user.id, "property", item.id, "property image uploaded", f"Uploaded image for {item.code}")
+    db.commit()
+    return _get_visible_or_404(Property, property_id, db, current_user)
 
 
 @matching_router.get("/{customer_id}", response_model=list[MatchResult])
